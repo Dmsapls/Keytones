@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keytones - FMPT Musical Club</title>
+
+<!-- Google Font for artistic, musical feel -->
+<link href="https://fonts.googleapis.com/css2?family=Monoton&display=swap" rel="stylesheet">
+
+<style>
+/* Base Styles */
+body {
+    margin: 0;
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #000;
+    color: #fff;
+    overflow-x: hidden;
+    line-height: 1.5;
+}
+
+/* Accent & Links */
+a {
+    color: #D71D1E;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Neon Headers */
+h1, h2, h3 {
+    font-family: 'Monoton', cursive;
+    text-shadow: 0 0 5px #D71D1E, 0 0 10px #D71D1E, 0 0 20px #D71D1E;
+}
+
+/* Container */
+.container {
+    width: 90%;
+    max-width: 1000px;
+    margin: auto;
+    padding: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Logo Placeholder with Animation */
+.logo-slot {
+    width: 200px;
+    height: 200px;
+    background-color: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+    border: 4px solid #D71D1E;
+    margin: 20px auto;
+    animation: pulse 2s infinite alternate;
+}
+
+/* Pulse animation */
+@keyframes pulse {
+    0% { box-shadow: 0 0 5px #D71D1E; transform: scale(1); }
+    100% { box-shadow: 0 0 20px #D71D1E; transform: scale(1.05); }
+}
+
+/* Navigation */
+nav {
+    text-align: center;
+    margin: 20px 0;
+    animation: slideDown 1.5s ease-out;
+}
+
+nav a {
+    margin: 0 15px;
+    font-size: 1.2em;
+}
+
+/* Slide down animation */
+@keyframes slideDown {
+    0% { transform: translateY(-50px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+/* Sections */
+section {
+    margin: 40px 0;
+    padding: 20px;
+    background-color: #111;
+    border: 2px solid #D71D1E;
+    border-radius: 15px;
+    animation: fadeIn 1.5s ease-in;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Buttons with Neon Glow */
+.btn {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: #D71D1E;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    text-shadow: 0 0 5px #fff;
+    box-shadow: 0 0 10px #D71D1E;
+    transition: 0.3s;
+}
+
+.btn:hover {
+    background-color: #a31616;
+    box-shadow: 0 0 20px #D71D1E, 0 0 30px #fff;
+    transform: scale(1.05);
+}
+
+/* Gallery */
+.gallery {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.gallery img {
+    width: calc(33.333% - 10px);
+    height: 150px;
+    object-fit: cover;
+    border: 2px solid #D71D1E;
+    border-radius: 10px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.gallery img:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 15px #D71D1E;
+}
+
+/* Members */
+.members {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.member {
+    flex: 1 1 200px;
+    text-align: center;
+    border: 2px solid #D71D1E;
+    border-radius: 15px;
+    padding: 15px;
+    background-color: #222;
+    animation: float 3s ease-in-out infinite alternate;
+}
+
+.member img {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #D71D1E;
+}
+
+/* Float animation */
+@keyframes float {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-10px); }
+}
+
+/* Marquee-style header */
+.marquee {
+    width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    border: 2px solid #D71D1E;
+    padding: 5px 0;
+    margin-bottom: 20px;
+}
+
+.marquee span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 15s linear infinite;
+    font-size: 1.2em;
+    color: #D71D1E;
+}
+
+@keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+
+/* Side Musical GIFs */
+.side-gif {
+    position: fixed;
+    top: 0;
+    width: 180px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    z-index: 1;
+}
+
+.side-gif.left {
+    left: 0;
+}
+
+.side-gif.right {
+    right: 0;
+}
+
+.side-gif img {
+    width: 160px;
+    height: 160px;
+    margin: 10px 0;
+    animation: bounce 2s infinite alternate;
+}
+
+/* Bounce animation */
+@keyframes bounce {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-15px); }
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin: 40px 0;
+    font-size: 0.9em;
+    color: #aaa;
+}
+
+/* Responsive */
+@media screen and (max-width: 800px) {
+    .gallery img { width: calc(50% - 10px); }
+    .members { flex-direction: column; align-items: center; }
+    .side-gif { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Left GIFs -->
+<div class="side-gif left">
+    <img src="a.gif" alt="Guitar GIF">
+    <img src="giphy.gif" alt="Piano GIF">
+    <img src="sax.gif" alt="Sax GIF">
+</div>
+
+<!-- Right GIFs -->
+<div class="side-gif right">
+    <img src="guitar r.gif" alt="Drums GIF">
+    <img src="violin.gif" alt="Violin GIF">
+    <img src="guitare.gif" alt="Trumpet GIF">
+</div>
+
+<div class="container">
+    <!-- Logo -->
+    <img class="logo-slot" src="keytones.jpg" alt="Guitar GIF">
+
+    <!-- Marquee -->
+    <div class="marquee"><span>🎵 Welcome to Keytones - FMPT Musical Club 🎵</span></div>
+
+    <!-- Navigation -->
+    <nav>
+        <a href="#about">About</a>
+        <a href="#events">Upcoming Events</a>
+        <a href="#gallery">Gallery</a>
+        <a href="#apply">Apply</a>
+        <a href="#members">Members</a>
+    </nav>
+
+    <!-- About Section -->
+    <section id="about">
+        <h2>About Keytones</h2>
+        <p>Keytones is the official musical club of FMPT - Faculté de Médecine et de Pharmacie de Tanger. We bring together students passionate about music, organizing concerts, jam sessions, and workshops throughout the academic year. Our mission is to promote music culture and foster creativity among our members.</p>
+    </section>
+
+    <!-- Upcoming Events Section -->
+    <section id="events">
+        <h2>Upcoming Events</h2>
+        <ul>
+            <li>🎵 Spring Concert - March 15, 2026</li>
+            <li>🎸 Open Jam Night - April 10, 2026</li>
+            <li>🎶 Music Workshop with Guest Artist - May 5, 2026</li>
+        </ul>
+    </section>
+
+    <!-- Gallery Section -->
+    <section id="gallery">
+        <h2>Gallery</h2>
+        <div class="gallery">
+            <img src="1.jpeg" alt="Gallery photo 1">
+            <img src="2.jpeg" alt="Gallery photo 2">
+            <img src="3.jpeg" alt="Gallery photo 3">
+            <img src="4.jpeg" alt="Gallery photo 4">
+            <img src="5.jpeg" alt="Gallery photo 5">
+            <img src="6.png" alt="Gallery photo 6">
+        </div>
+    </section>
+
+    <!-- Apply Section -->
+    <section id="apply">
+        <h2>Join the Club</h2>
+        <p>If you're passionate about music and want to join Keytones, click the button below to fill out our membership application form.</p>
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLSdJ2yJ_W0mV0b4606aPZvAWYsAg6DNyfK84U2Lncy8VkDWo4g/viewform" target="_blank" class="btn">Apply Now</a>
+    </section>
+
+    <!-- Members Section -->
+    <section id="members">
+        <h2>Our Team</h2>
+        <div class="members">
+            <div class="member">
+                <img src="abdrahman.jpeg" alt="President">
+                <h3>President</h3>
+                <p>abdrahman</p>
+            </div>
+            <div class="member">
+                <img src="adam.jpeg" alt="Vice President">
+                <h3>Vice President</h3>
+                <p>Adam</p>
+            </div>
+            <div class="member">
+                <img src="https://via.placeholder.com/100.png?text=Member" alt="Member">
+                <h3>Member</h3>
+                <p>yoooooo</p>
+            </div>
+            <div class="member">
+                <img src="https://via.placeholder.com/100.png?text=Member" alt="Member">
+                <h3>Member</h3>
+                <p>yaaaa</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        &copy; 2026 Keytones FMPT | Made with ❤️ for the love of music
+    </footer>
+</div>
+
+</body>
+</html>
