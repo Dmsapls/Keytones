@@ -1,0 +1,1366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1.0" />
+  <title>KEYTONES — Concert Wall (Bass Glitch)</title>
+  <style>
+    :root{
+      --bg:#000;
+      --red:#D21C1B;
+      --white:#F4F4F4;
+      --muted:rgba(244,244,244,.70);
+    }
+
+    html,body{
+      width:100%;
+      height:100%;
+      margin:0;
+      background:var(--bg);
+      overflow:hidden;
+      font-family: "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      color:var(--white);
+    }
+
+    #stage{ position:relative; width:100%; height:100%; background:#000; overflow:hidden; }
+    canvas{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+    /* light scanlines + edge vignette (NOT a center circle) */
+    #fx{
+      position:absolute; inset:0; pointer-events:none; z-index:3;
+    }
+    #fx::before{
+      content:"";
+      position:absolute; inset:0;
+      background:
+        repeating-linear-gradient(to bottom,
+          rgba(255,255,255,.018) 0px,
+          rgba(255,255,255,.018) 1px,
+          rgba(0,0,0,0) 4px,
+          rgba(0,0,0,0) 7px
+        );
+      opacity:.16;
+      mix-blend-mode:overlay;
+    }
+    #fx::after{
+      content:"";
+      position:absolute; inset:-12%;
+      background: radial-gradient(ellipse at center,
+        rgba(0,0,0,0) 0%,
+        rgba(0,0,0,.18) 55%,
+        rgba(0,0,0,.70) 84%,
+        rgba(0,0,0,.92) 100%
+      );
+      opacity:1;
+    }
+
+    /* overlay text */
+    #overlay{
+      position:absolute; inset:0; z-index:4;
+      display:grid; place-items:center;
+      pointer-events:none;
+    }
+
+    /* IMPORTANT: no visible background behind title (no circle) */
+    .shield{
+      --jx: 0;      /* jitter x in px */
+      --jy: 0;      /* jitter y in px */
+      --sk: 0;      /* skew in deg */
+      --gl: 0;      /* glitch strength 0..1 */
+
+      padding: 16px 30px 14px;
+      border-radius: 18px;
+      background: transparent;
+
+      transform:
+        translate(calc(var(--jx) * 1px), calc(var(--jy) * 1px))
+        skewX(calc(var(--sk) * 1deg));
+
+      /* fast glitch-y “double edge” using drop-shadows (affects svg too) */
+      filter:
+        drop-shadow(calc(var(--gl) * 10px) calc(var(--gl) * -6px) 0 rgba(210,28,27,.20))
+        drop-shadow(calc(var(--gl) * -8px) calc(var(--gl) * 7px) 0 rgba(244,244,244,.14))
+        drop-shadow(0 10px 26px rgba(0,0,0,.70));
+    }
+
+    h1{
+      margin:0;
+      line-height:1;
+      font-weight:600;
+      letter-spacing:.09em;
+      color:var(--white);
+      text-shadow:
+        0 0 18px rgba(210,28,27,.18),
+        0 0 38px rgba(210,28,27,.08);
+    }
+
+    /* Similar logo-like positioning: “the” above-left of “KEYTONES” */
+    .line-the{
+      display:block;
+      font-size: clamp(28px, 3.3vw, 58px);
+      letter-spacing:.06em;
+      font-weight:520;
+      opacity:.96;
+      transform: translateX(-0.02em) translateY(0.5em);
+      margin-bottom: clamp(6px, .8vw, 12px);
+    }
+
+    .line-word{
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      gap: clamp(10px, 1.1vw, 18px);
+      font-size: clamp(54px, 8.2vw, 132px);
+      letter-spacing:0  em;
+      font-weight:650;
+    }
+
+    /* Keep exact text “the KEYTONES” in DOM, but replace the Y visually */
+    .word{
+      display:inline-flex;
+      align-items:flex-end;
+      position:relative;
+    }
+
+    .y-slot{
+      position:relative;
+      display:inline-block;
+      width: 0.92em;
+      height: 1em;
+      vertical-align: -0.02em;
+      margin: 0 0.02em;
+      transform: translateY(-0.5em);
+    }
+    .y-slot .y-char{ opacity:0; display:inline-block; width:100%; }
+    .y-slot .icon{
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      transform: translateY(0.02em);
+      filter: drop-shadow(0 0 12px rgba(210,28,27,.30));
+    }
+
+    /* tuning fork: red core + subtle white edge */
+    .tuning svg{ width:0.82em; height:0.96em; }
+    .tuning .fork{ stroke: var(--white); stroke-width: 2.0; stroke-linecap: round; stroke-linejoin: round; opacity:.95; }
+    .tuning .fill{ stroke: var(--red); stroke-width: 3.6; stroke-linecap: round; stroke-linejoin: round; opacity:1; }
+
+    /* Red/white wave icon */
+    .wave{
+      display:inline-grid;
+      place-items:center;
+      transform: translateX(-0.30em) translateY(-.68em);
+      opacity:.95;
+      filter: drop-shadow(0 0 10px rgba(210,28,27,.22));
+    }
+    .wave svg{ width: clamp(22px, 3.0vw, 46px); height:auto; }
+    .wave .w-red{ stroke: var(--red); stroke-width: 3.4; fill:none; stroke-linecap:round; }
+    .wave .w-white{ stroke: rgba(255, 0, 0, 0.92); stroke-width: 2.0; fill:none; stroke-linecap:round; }
+
+    .smallprint{
+      margin-top: 16px;
+      text-align:center;
+      font-size: clamp(12px, 1.2vw, 16px);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      opacity: .82;
+      user-select:none;
+      text-shadow: 0 8px 24px rgba(0,0,0,.70);
+    }
+
+    /* noise overlay canvas */
+    #noise{
+      z-index:2;
+      opacity:.07;
+      mix-blend-mode: overlay;
+      image-rendering: pixelated;
+      pointer-events:none;
+    }
+
+    /* Hidden menu (toggle with M) */
+    #menu{
+      position:absolute;
+      top:16px;
+      right:16px;
+      z-index:5;
+      width:min(410px, 92vw);
+      padding:14px 14px 12px;
+      border-radius:16px;
+      background: rgba(10,10,10,.72);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 16px 50px rgba(0,0,0,.55);
+      color: rgba(244,244,244,.92);
+      display:none;
+      pointer-events:auto;
+    }
+    #menu.open{ display:block; }
+
+    #menu h2{
+      margin:0 0 10px;
+      font-size:14px;
+      letter-spacing:.18em;
+      text-transform:uppercase;
+      font-weight:650;
+      opacity:.9;
+    }
+    .row{
+      display:grid;
+      grid-template-columns: 1fr auto;
+      align-items:center;
+      gap:10px;
+      padding:8px 0;
+      border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .row:first-of-type{ border-top:none; }
+    .row label{ font-size:12px; letter-spacing:.06em; opacity:.92; }
+    .row output{
+      font-variant-numeric: tabular-nums;
+      font-size:12px;
+      opacity:.75;
+      min-width:44px;
+      text-align:right;
+    }
+    input[type="range"]{ width: 190px; }
+    .btns{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top:10px;
+      padding-top:10px;
+      border-top: 1px solid rgba(255,255,255,.08);
+    }
+    button{
+      appearance:none;
+      border:none;
+      border-radius:12px;
+      padding:10px 12px;
+      background: rgba(255,255,255,.10);
+      color: rgba(244,244,244,.92);
+      cursor:pointer;
+      font-weight:650;
+      letter-spacing:.05em;
+      font-size:12px;
+    }
+    button:hover{ background: rgba(255,255,255,.14); }
+    button.primary{
+      background: rgba(210,28,27,.28);
+      border: 1px solid rgba(210,28,27,.35);
+    }
+    button.primary:hover{ background: rgba(210,28,27,.34); }
+
+    @media (prefers-reduced-motion: reduce){
+      #bg, #noise { display:none; }
+      #fx::before{ opacity:.12; }
+    }
+    .png-icon img{
+  width: 0.82em;     /* tweak this */
+  height: 2.0em;    /* tweak this */
+  object-fit: contain;
+  display: block;
+  transform: translateY(0.02em); /* tweak vertical align */
+  filter: drop-shadow(0 0 12px rgba(210,28,27,.30));
+}
+
+  </style>
+</head>
+
+<body>
+  <div id="stage">
+    <canvas id="bg"></canvas>
+    <canvas id="noise"></canvas>
+
+    <div id="overlay">
+      <!-- glitch/jitter is applied to this element -->
+      <div class="shield" id="logo" aria-label="the KEYTONES">
+        <h1>
+          <span class="line-the">the</span>
+          <span class="line-word">
+            <span class="word">
+              KE
+            <span class="y-slot">
+  <span class="y-char">Y</span>
+  <span class="icon png-icon" aria-hidden="true">
+    <img src="tuningfork.png" alt="" />
+  </span>
+</span>
+
+              TONES
+            </span>
+
+            <span class="wave" aria-hidden="true">
+              <svg viewBox="0 0 64 64">
+                <path class="w-red" d="M20 42c6-6 6-14 0-20"/>
+                <path class="w-red" d="M34 50c10-10 10-26 0-36"/>
+                <path class="w-red" d="M48 58c14-14 14-38 0-52"/>
+
+                <path class="w-white" d="M20 42c6-6 6-14 0-20"/>
+                <path class="w-white" d="M34 50c10-10 10-26 0-36"/>
+                <path class="w-white" d="M48 58c14-14 14-38 0-52"/>
+              </svg>
+            </span>
+          </span>
+        </h1>
+
+        <div class="smallprint">FMPT musical club</div>
+      </div>
+    </div>
+
+    <!-- Hidden menu (press M). Quick toggle: A -->
+    <div id="menu" role="dialog" aria-label="Visuals menu">
+      <h2>VISUALS</h2>
+
+      <div class="row">
+        <label>Mode (Random / Audio)</label>
+        <div style="display:flex; gap:8px;">
+          <button id="modeRandom" class="primary" type="button">Random</button>
+          <button id="modeAudio" type="button">Audio</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Master intensity</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="intensity" type="range" min="0.10" max="2.00" step="0.01" />
+          <output id="intensityOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Speed</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="speed" type="range" min="0.30" max="3.50" step="0.01" />
+          <output id="speedOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Accent amount</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="accents" type="range" min="0.00" max="1.30" step="0.01" />
+          <output id="accentsOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>More colors</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="colorful" type="range" min="0.00" max="2.00" step="0.01" />
+          <output id="colorfulOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Audio sensitivity</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="sens" type="range" min="0.40" max="6.00" step="0.01" />
+          <output id="sensOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Drum/Bass boost</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="bassBoost" type="range" min="0.60" max="5.00" step="0.01" />
+          <output id="bassBoostOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Weird-shape amount</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="shapeAmt" type="range" min="0.00" max="50.00" step="0.01" />
+          <output id="shapeAmtOut"></output>
+        </div>
+      </div>
+
+      <div class="row">
+        <label>Logo glitch on bass</label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input id="logoGlitch" type="range" min="0.00" max="1.50" step="0.01" />
+          <output id="logoGlitchOut"></output>
+        </div>
+      </div>
+      
+      <div class="row">
+  <label>Star amount</label>
+  <div style="display:flex; align-items:center; gap:10px;">
+    <input id="starAmt" type="range" min="0.00" max="2.00" step="0.01" />
+    <output id="starAmtOut"></output>
+  </div>
+</div>
+
+
+      <div class="btns">
+        <button id="micBtn" class="primary" type="button">Enable mic</button>
+        <button id="resetBtn" type="button">Reset</button>
+        <button id="closeBtn" type="button">Close</button>
+      </div>
+
+      <div style="margin-top:10px; opacity:.65; font-size:11px; letter-spacing:.04em; line-height:1.35;">
+        Hidden controls: <b>M</b> menu • <b>A</b> toggle Audio/Random • <b>Esc</b> close
+      </div>
+    </div>
+
+    <div id="fx"></div>
+  </div>
+
+  <script>
+    (() => {
+      const bg = document.getElementById('bg');
+      const noise = document.getElementById('noise');
+      const ctx = bg.getContext('2d', { alpha:true });
+      const nctx = noise.getContext('2d', { alpha:true });
+      const logo = document.getElementById('logo');
+
+      // -----------------------------
+      // Settings (saved)
+      // -----------------------------
+      const STORAGE_KEY = "keytones_wall_glitch_stars_v1";
+      const defaultSettings = {
+        mode: "random",
+        intensity: 0.92,
+        speed: 1.25,
+        accents: 0.22,
+        colorful: 0.20,   // 0 = classic / 2 = lots more colors (still tasteful)
+        sens: 2.00,
+        bassBoost: 2.10,
+        shapeAmt: 0.32,
+        logoGlitch: 0.75,
+        starAmt: 0.85,
+      };
+      const settings = Object.assign({}, defaultSettings, load());
+
+      function load(){
+        try{
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if(!raw) return {};
+          const parsed = JSON.parse(raw);
+          return (parsed && typeof parsed === "object") ? parsed : {};
+        }catch(e){ return {}; }
+      }
+      function save(){
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(settings)); }catch(e){}
+      }
+
+      // -----------------------------
+      // Menu wiring
+      // -----------------------------
+      const menu = document.getElementById('menu');
+      const el = (id) => document.getElementById(id);
+      const ui = {
+        modeRandom: el('modeRandom'),
+        modeAudio: el('modeAudio'),
+        intensity: el('intensity'),
+        intensityOut: el('intensityOut'),
+        speed: el('speed'),
+        speedOut: el('speedOut'),
+        accents: el('accents'),
+        accentsOut: el('accentsOut'),
+        colorful: el('colorful'),
+        colorfulOut: el('colorfulOut'),
+        sens: el('sens'),
+        sensOut: el('sensOut'),
+        bassBoost: el('bassBoost'),
+        bassBoostOut: el('bassBoostOut'),
+        shapeAmt: el('shapeAmt'),
+        shapeAmtOut: el('shapeAmtOut'),
+        logoGlitch: el('logoGlitch'),
+        logoGlitchOut: el('logoGlitchOut'),
+        micBtn: el('micBtn'),
+        resetBtn: el('resetBtn'),
+        closeBtn: el('closeBtn'),
+        starAmt: el('starAmt'),
+        starAmtOut: el('starAmtOut'),
+      };
+
+      function setMode(mode){
+        settings.mode = mode;
+        ui.modeRandom.classList.toggle("primary", mode === "random");
+        ui.modeAudio.classList.toggle("primary", mode === "audio");
+        save();
+      }
+
+      function bindRange(input, output, key, digits=2){
+        input.value = settings[key];
+        const write = () => output.textContent = Number(settings[key]).toFixed(digits);
+        write();
+        input.addEventListener('input', () => {
+          settings[key] = Number(input.value);
+          write();
+          save();
+        });
+      }
+
+      bindRange(ui.intensity, ui.intensityOut, "intensity");
+      bindRange(ui.speed, ui.speedOut, "speed");
+      bindRange(ui.accents, ui.accentsOut, "accents");
+      bindRange(ui.colorful, ui.colorfulOut, "colorful");
+      bindRange(ui.sens, ui.sensOut, "sens");
+      bindRange(ui.bassBoost, ui.bassBoostOut, "bassBoost");
+      bindRange(ui.shapeAmt, ui.shapeAmtOut, "shapeAmt");
+      bindRange(ui.logoGlitch, ui.logoGlitchOut, "logoGlitch");
+      bindRange(ui.starAmt, ui.starAmtOut, "starAmt");
+
+      ui.modeRandom.addEventListener('click', () => setMode("random"));
+      ui.modeAudio.addEventListener('click', () => setMode("audio"));
+      ui.closeBtn.addEventListener('click', () => menu.classList.remove("open"));
+      ui.resetBtn.addEventListener('click', () => {
+        Object.assign(settings, defaultSettings);
+        setMode(settings.mode);
+        for (const k of ["intensity","speed","accents","colorful","sens","bassBoost","shapeAmt","logoGlitch","starAmt"]) {
+          ui[k].value = settings[k];
+          ui[k].dispatchEvent(new Event('input'));
+        }
+        save();
+      });
+
+      function toggleMenu(){ menu.classList.toggle("open"); }
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'm' || e.key === 'M') toggleMenu();
+        if (e.key === 'Escape') menu.classList.remove("open");
+        if (e.key === 'a' || e.key === 'A') setMode(settings.mode === "audio" ? "random" : "audio");
+      }, { passive:true });
+
+      setMode(settings.mode);
+
+      // -----------------------------
+      // Helpers
+      // -----------------------------
+      const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+      const lerp = (a,b,t)=>a+(b-a)*t;
+      const smoothstep = (t)=>t*t*(3-2*t);
+
+      // -----------------------------
+      // Canvas resize
+      // -----------------------------
+      let W=0,H=0,DPR=1;
+      function resize(){
+        DPR = Math.min(2, window.devicePixelRatio || 1);
+        W = Math.floor(window.innerWidth);
+        H = Math.floor(window.innerHeight);
+
+        bg.width = Math.floor(W*DPR);
+        bg.height = Math.floor(H*DPR);
+        bg.style.width = W + "px";
+        bg.style.height = H + "px";
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+
+        const nw = 260, nh = 160;
+        noise.width = nw;
+        noise.height = nh;
+        noise.style.width = W + "px";
+        noise.style.height = H + "px";
+        nctx.setTransform(1,0,0,1,0,0);
+      }
+      window.addEventListener('resize', resize, { passive:true });
+      resize();
+
+      // -----------------------------
+      // RNG
+      // -----------------------------
+      let seed = (Date.now() ^ (Math.random()*1e9)) >>> 0;
+      const rand = () => {
+        seed ^= seed << 13; seed >>>= 0;
+        seed ^= seed >> 17; seed >>>= 0;
+        seed ^= seed << 5;  seed >>>= 0;
+        return (seed >>> 0) / 4294967296;
+      };
+      const randRange = (a,b)=>lerp(a,b,rand());
+
+      // -----------------------------
+      // Colors
+      // -----------------------------
+      const C = {
+        red: {r:210,g:28,b:27},
+        white: {r:244,g:244,b:244},
+        cyan: {r:92,g:230,b:230},
+        purple:{r:200,g:120,b:255},
+        mint: {r:160,g:255,b:220},
+        pink: {r:255,g:140,b:200},
+
+        // extra palette (used only when "More colors" is turned up)
+        blue: {r:120,g:170,b:255},
+        amber:{r:255,g:170,b:90},
+        lime: {r:190,g:255,b:120},
+        magenta:{r:255,g:110,b:230}
+      };
+
+      const rgba = (c,a)=>`rgba(${c.r|0},${c.g|0},${c.b|0},${a})`;
+
+      function paletteNow(){
+        // Keep the original look by default: mostly red + a few accents.
+        // As "More colors" increases, we *add* extra hues but keep them subtle by probability.
+        const baseAccents = [C.cyan, C.purple, C.mint, C.pink];
+        if (settings.colorful <= 0.90) return baseAccents;
+
+        const extra = [C.blue, C.amber, C.lime, C.magenta];
+        return baseAccents.concat(extra);
+      }
+
+      function pickColor(){
+        const acc = paletteNow();
+        const more = settings.colorful; // 0..2
+
+        // probability: mostly red always
+        const pAccent =
+          0.06 +
+          settings.accents * 0.42 +
+          more * 0.16; // “more colors” nudges frequency, but still controlled
+
+        if (rand() < clamp(pAccent, 0, 0.78)) return acc[(rand()*acc.length)|0];
+        return C.red;
+      }
+
+      // -----------------------------
+      // Audio (mic)
+      // -----------------------------
+      let audioCtx=null, analyser=null, data=null, micStream=null;
+      let audioEnergy=0;   // 0..1
+      let bassEnergy=0;    // 0..1
+      let bassBaseline=0;  // baseline
+      let beat=0;          // transient 0..1
+      let lastBeatT=0;
+
+      async function enableMic(){
+        try{
+          if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if(audioCtx.state === "suspended") await audioCtx.resume();
+
+          micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+
+          const src = audioCtx.createMediaStreamSource(micStream);
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 2048;
+          analyser.smoothingTimeConstant = 0.70;
+          src.connect(analyser);
+          data = new Uint8Array(analyser.frequencyBinCount);
+
+          ui.micBtn.textContent = "Mic enabled";
+        }catch(err){
+          ui.micBtn.textContent = "Mic blocked";
+          console.warn(err);
+        }
+      }
+      ui.micBtn.addEventListener('click', enableMic);
+
+      function bandRMS(start, end){
+        let sum = 0;
+        const n = Math.max(1, end - start);
+        for (let i = start; i < end; i++){
+          const v = (data[i] || 0) / 255;
+          sum += v*v;
+        }
+        return Math.sqrt(sum / n);
+      }
+
+      function updateAudio(t){
+        if(settings.mode !== "audio" || !analyser || !data){
+          audioEnergy *= 0.90;
+          bassEnergy *= 0.90;
+          beat *= 0.86;
+          return;
+        }
+
+        analyser.getByteFrequencyData(data);
+
+        const bass = bandRMS(2, 28);
+        const lowMid = bandRMS(28, 92);
+        const hi = bandRMS(92, 220);
+
+        const rawBass = clamp(bass * settings.bassBoost * settings.sens * 1.55, 0, 1);
+        const rawAll  = clamp((bass*1.6 + lowMid*0.9 + hi*0.16) * settings.sens * 0.95, 0, 1);
+
+        bassEnergy = lerp(bassEnergy, rawBass, 0.26);
+        audioEnergy = lerp(audioEnergy, rawAll, 0.30);
+
+        bassBaseline = lerp(bassBaseline, bassEnergy, 0.045);
+        const transient = clamp((bassEnergy - bassBaseline) * (2.4 + settings.bassBoost*0.9), 0, 1);
+
+        const minGap = 0.085;
+        if (transient > 0.14 && (t - lastBeatT) > minGap){
+          lastBeatT = t;
+          beat = lerp(beat, transient, 0.78);
+        } else {
+          beat *= 0.88;
+        }
+      }
+
+      // -----------------------------
+      // Visual layers (kept clean)
+      // -----------------------------
+      const beams = Array.from({length:4}, (_,i)=>({
+        ang: randRange(-1.0, 1.0) + i*0.30,
+        width: randRange(0.12, 0.22),
+        speed: randRange(1.0, 1.7),
+        phase: randRange(0, 10),
+      }));
+
+      const ribbons = Array.from({length:2}, ()=>({
+        baseY: randRange(0.32, 0.72),
+        amp: randRange(16, 46),
+        freq: randRange(0.004, 0.008),
+        drift: randRange(0.9, 1.3),
+        c: pickColor(),
+        a: randRange(0.035, 0.07),
+        lw: randRange(1.1, 2.0),
+        phase: randRange(0, 10)
+      }));
+
+      // sparks dashes
+      function sparkCount(){
+        const base = (W*H)/52000;
+        return Math.round(clamp(base, 28, 92));
+      }
+      let sparks = [];
+      function initSparks(){
+        const n = sparkCount();
+        sparks = Array.from({length:n}, ()=>({
+          x: rand()*W,
+          y: rand()*H,
+          vx: randRange(-0.65, 0.65),
+          vy: randRange(-0.48, 0.48),
+          len: randRange(7, 22),
+          ang: randRange(0, Math.PI*2),
+          spin: randRange(-1.4, 1.4),
+          c: pickColor(),
+          tw: randRange(0, Math.PI*2),
+          tws: randRange(1.6, 3.2),
+        }));
+      }
+      initSparks();
+      window.addEventListener('resize', initSparks, {passive:true});
+
+      // limited shards (irregular polygons) — controlled amount
+      const shards = [];
+      let nextShardAt = 0;
+
+      function centerExclusionRadius(){ return Math.min(W,H) * 0.26; }
+      function tooCloseToCenter(x,y){
+        const cx=W*0.5, cy=H*0.5;
+        const dx=x-cx, dy=y-cy;
+        return (dx*dx + dy*dy) < (centerExclusionRadius() ** 2);
+      }
+      function farEnoughFromOthers(x,y,size){
+        for (const sh of shards){
+          const dx = x - sh.x;
+          const dy = y - sh.y;
+          const minD = (size + sh.size) * 0.60;
+          if (dx*dx + dy*dy < minD*minD) return false;
+        }
+        return true;
+      }
+      function maxShardsAllowed(){
+        return Math.round(lerp(3, 10, settings.shapeAmt));
+      }
+      function scheduleShard(t, drive){
+        const amt = settings.shapeAmt;
+        const base = lerp(1.05, 0.34, amt);
+        const beatFactor = lerp(1.0, 0.62, clamp(beat*1.2,0,1));
+        const audioFactor = lerp(1.0, 0.80, drive);
+        nextShardAt = t + Math.max(0.14, base * beatFactor * audioFactor * randRange(0.88, 1.18));
+      }
+      function spawnShard(t, power){
+        if (shards.length >= maxShardsAllowed()) return;
+
+        const size = randRange(Math.min(W,H)*0.11, Math.min(W,H)*0.21) * (0.95 + power*0.30);
+
+        let x=0, y=0, ok=false;
+        for(let tries=0; tries<14; tries++){
+          x = randRange(W*0.10, W*0.90);
+          y = randRange(H*0.10, H*0.90);
+          if (tooCloseToCenter(x,y)) continue;
+          if (!farEnoughFromOthers(x,y,size)) continue;
+          ok=true; break;
+        }
+        if(!ok) return;
+
+        const c = (rand() < 0.82) ? C.red : pickColor();
+        shards.push({
+          t0: t,
+          dur: randRange(0.22, 0.38) * (0.95 + power*0.30),
+          hold: randRange(0.08, 0.14),
+          x, y,
+          rot: randRange(0, Math.PI*2),
+          size,
+          c,
+          a: randRange(0.10, 0.19) * (0.90 + power*0.55)
+        });
+      }
+
+      // sparse spotlights
+      const spots = [];
+      function spawnSpot(t, power){
+        if (spots.length > 3) return;
+        let x=0,y=0, ok=false;
+        const r = randRange(Math.min(W,H)*0.20, Math.min(W,H)*0.34) * (0.95 + power*0.30);
+        for (let tries=0; tries<10; tries++){
+          x = randRange(W*0.10, W*0.90);
+          y = randRange(H*0.10, H*0.90);
+          if (tooCloseToCenter(x,y)) continue;
+          ok=true; break;
+        }
+        if(!ok) return;
+
+        spots.push({
+          t0: t,
+          dur: randRange(0.16, 0.28) * (1 + power*0.22),
+          x, y,
+          rot: randRange(-1.2, 1.2),
+          sx: randRange(1.9, 2.9),
+          sy: randRange(0.36, 0.62),
+          r,
+          c: (rand()<0.86) ? C.red : pickColor(),
+          a: randRange(0.032, 0.065) * (1 + power*0.85)
+        });
+      }
+
+      // -----------------------------
+      // Bass-only “stars” (replaces the old bass stamp)
+      // - triggers only on beat/bass transient
+      // - looks like sharp starbursts (fits concert vibe)
+      // -----------------------------
+      const stars = [];
+      function spawnBassStar(t, power){
+        const maxStars = Math.round(lerp(2, 28, clamp(settings.starAmt / 2, 0, 1)));
+          if (stars.length > maxStars) return;  // prevent stacking
+
+        // Prefer edges/corners
+        const edge = rand() < 0.70;
+        const padX = W*0.12, padY = H*0.14;
+
+        let x = edge ? (rand()<0.5 ? randRange(0, padX) : randRange(W-padX, W)) : randRange(W*0.12, W*0.88);
+        let y = edge ? randRange(H*0.12, H*0.88) : (rand()<0.5 ? randRange(0, padY) : randRange(H-padY, H));
+
+        if (tooCloseToCenter(x,y)){
+          x = rand()<0.5 ? randRange(0, padX) : randRange(W-padX, W);
+          y = randRange(H*0.18, H*0.82);
+        }
+
+        const c = (rand()<0.85) ? C.red : pickColor();
+        stars.push({
+          t0: t,
+          dur: randRange(0.14, 0.22) * (1 + power*0.25),
+          hold: randRange(0.05, 0.10),
+          x, y,
+          r: randRange(Math.min(W,H)*0.018, Math.min(W,H)*0.035) * (1 + power*0.65),
+          rot: randRange(0, Math.PI*2),
+          spin: randRange(-6.0, 6.0),
+          c,
+          a: (0.10 + power*0.22)
+        });
+      }
+
+      function starPath(ctx, spikes, outerR, innerR){
+        let rot = -Math.PI/2;
+        const step = Math.PI / spikes;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(rot)*outerR, Math.sin(rot)*outerR);
+        for (let i=0; i<spikes; i++){
+          ctx.lineTo(Math.cos(rot)*outerR, Math.sin(rot)*outerR);
+          rot += step;
+          ctx.lineTo(Math.cos(rot)*innerR, Math.sin(rot)*innerR);
+          rot += step;
+        }
+        ctx.closePath();
+      }
+
+      // -----------------------------
+      // Noise
+      // -----------------------------
+      let lastNoise=0;
+      function drawNoiseLayer(t){
+        if(t-lastNoise < 1/12) return;
+        lastNoise=t;
+
+        const w=noise.width, h=noise.height;
+        const img = nctx.createImageData(w,h);
+        const d = img.data;
+        for(let i=0;i<d.length;i+=4){
+          const v = (rand()*255)|0;
+          d[i]=v; d[i+1]=v; d[i+2]=v;
+          d[i+3]=22;
+        }
+        nctx.putImageData(img,0,0);
+        nctx.fillStyle="rgba(0,0,0,0.06)";
+        nctx.fillRect(0,0,w,h);
+      }
+
+      // -----------------------------
+      // Draw helpers
+      // -----------------------------
+      function clearWithTrail(){
+        ctx.globalCompositeOperation="source-over";
+        const a = (settings.mode==="audio") ? 0.27 : 0.23;
+        ctx.fillStyle = `rgba(0,0,0,${a})`;
+        ctx.fillRect(0,0,W,H);
+      }
+
+      function drawBeams(t, drive){
+        ctx.save();
+        ctx.globalCompositeOperation="lighter";
+
+        const cx=W*0.5, cy=H*0.5;
+        const diag=Math.hypot(W,H);
+        const speed = settings.speed;
+        const master = settings.intensity;
+
+        for(const b of beams){
+          const ang = b.ang + Math.sin(t*0.40*speed + b.phase)*0.11;
+          const sweep = (t*b.speed*0.26*speed + b.phase) % 1;
+          const beamW = diag*b.width;
+          const x = lerp(-diag*0.72, diag*0.72, sweep);
+
+          ctx.save();
+          ctx.translate(cx,cy);
+          ctx.rotate(ang);
+
+          const pulse = 1 + drive*0.70;
+          const a0 = 0.032*master*pulse;
+          const a1 = 0.058*master*pulse;
+
+          const g = ctx.createLinearGradient(x-beamW,0,x+beamW,0);
+          g.addColorStop(0.00, rgba(C.red, 0));
+          g.addColorStop(0.34, rgba(C.red, a0));
+          g.addColorStop(0.50, rgba(C.red, a1));
+          g.addColorStop(0.66, rgba(C.red, a0));
+          g.addColorStop(1.00, rgba(C.red, 0));
+
+          ctx.fillStyle=g;
+          ctx.fillRect(-diag,-diag,diag*2,diag*2);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawRibbons(t, drive){
+        ctx.save();
+        ctx.globalCompositeOperation="lighter";
+        ctx.lineCap="round"; ctx.lineJoin="round";
+
+        const speed = settings.speed;
+        const master = settings.intensity;
+
+        for(const r of ribbons){
+          const y0 = r.baseY*H + Math.sin(t*0.33*speed + r.phase)*10;
+          const amp = r.amp*(1+drive*0.28) + Math.sin(t*1.05*speed + r.phase)*8;
+
+          const step = Math.max(18, Math.floor(W/34));
+          ctx.beginPath();
+          for(let x=-step; x<=W+step; x+=step){
+            const wv1 = Math.sin(x*r.freq + t*(1.55*r.drift)*speed + r.phase);
+            const wv2 = Math.sin(x*r.freq*0.7 - t*(1.00*r.drift)*speed + r.phase*1.7);
+            const y = y0 + (wv1*0.7 + wv2*0.3)*amp;
+            if(x<-0.5) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+          }
+
+          const a = r.a * master * (0.92 + drive*0.45);
+          ctx.strokeStyle = rgba(r.c, a);
+          ctx.lineWidth = r.lw;
+          ctx.stroke();
+
+          ctx.strokeStyle = rgba(r.c, a*0.40);
+          ctx.lineWidth = Math.max(0.9, r.lw-0.6);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawSparks(t, drive){
+        ctx.save();
+        ctx.globalCompositeOperation="lighter";
+
+        const speed = settings.speed;
+        const master = settings.intensity;
+
+        for(const s of sparks){
+          s.x += s.vx*speed;
+          s.y += s.vy*speed;
+          s.ang += s.spin*0.014*speed;
+
+          if(s.x < -30) s.x = W+30;
+          if(s.x > W+30) s.x = -30;
+          if(s.y < -30) s.y = H+30;
+          if(s.y > H+30) s.y = -30;
+
+          const tw = (Math.sin(t*s.tws*speed + s.tw)*0.5+0.5);
+          const a = (0.032 + tw*0.068) * master * (0.85 + drive*0.70);
+          const len = s.len * (0.85 + tw*0.65) * (0.92 + drive*0.30);
+
+          const dx = Math.cos(s.ang) * len;
+          const dy = Math.sin(s.ang) * len;
+
+          const g = ctx.createLinearGradient(s.x-dx*0.5, s.y-dy*0.5, s.x+dx*0.5, s.y+dy*0.5);
+          g.addColorStop(0, rgba(s.c, 0));
+          g.addColorStop(0.45, rgba(s.c, a));
+          g.addColorStop(0.55, rgba(s.c, a));
+          g.addColorStop(1, rgba(s.c, 0));
+
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 2.0;
+          ctx.beginPath();
+          ctx.moveTo(s.x-dx*0.5, s.y-dy*0.5);
+          ctx.lineTo(s.x+dx*0.5, s.y+dy*0.5);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(244,244,244,${a*0.18})`;
+          ctx.lineWidth = 1.05;
+          ctx.beginPath();
+          ctx.moveTo(s.x-dx*0.48, s.y-dy*0.48);
+          ctx.lineTo(s.x+dx*0.48, s.y+dy*0.48);
+          ctx.stroke();
+        }
+
+        ctx.restore();
+      }
+
+      function drawSpots(t){
+        ctx.save();
+        ctx.globalCompositeOperation="lighter";
+
+        for(let i=spots.length-1;i>=0;i--){
+          const sp = spots[i];
+          const u = (t - sp.t0) / sp.dur;
+          if (u >= 1){ spots.splice(i,1); continue; }
+
+          const rise = smoothstep(clamp(u/0.14, 0, 1));
+          const fall = 1 - smoothstep(clamp((u-0.14)/0.86, 0, 1));
+          const a = sp.a * rise * fall * settings.intensity;
+
+          ctx.save();
+          ctx.translate(sp.x, sp.y);
+          ctx.rotate(sp.rot);
+          ctx.scale(sp.sx, sp.sy);
+
+          const g = ctx.createRadialGradient(0,0,0, 0,0, sp.r);
+          g.addColorStop(0.0, rgba(sp.c, a));
+          g.addColorStop(0.30, rgba(sp.c, a*0.42));
+          g.addColorStop(1.0, rgba(sp.c, 0));
+          ctx.fillStyle = g;
+
+          ctx.beginPath();
+          ctx.arc(0,0, sp.r, 0, Math.PI*2);
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(244,244,244,${a*0.12})`;
+          ctx.lineWidth = 1.0;
+          ctx.beginPath();
+          ctx.arc(0,0, sp.r*0.62, 0, Math.PI*2);
+          ctx.stroke();
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawShards(t, drive){
+        ctx.save();
+        ctx.globalCompositeOperation="lighter";
+
+        for(let i=shards.length-1;i>=0;i--){
+          const sh = shards[i];
+          const u = (t - sh.t0) / sh.dur;
+          if(u >= 1){ shards.splice(i,1); continue; }
+
+          const riseT = 0.16;
+          const holdT = sh.hold;
+          const fallT = Math.max(0.12, 1 - riseT - holdT);
+
+          let aEnv = 0;
+          if (u < riseT) aEnv = smoothstep(clamp(u / riseT, 0, 1));
+          else if (u < riseT + holdT) aEnv = 1;
+          else {
+            const f = (u - riseT - holdT) / fallT;
+            aEnv = 1 - smoothstep(clamp(f, 0, 1));
+          }
+
+          const a = sh.a * aEnv * settings.intensity * (1 + drive*0.55);
+
+          const pts = 7 + (rand()<0.28 ? 1 : 0);
+          const R = sh.size;
+          const r2 = R*0.54;
+
+          ctx.save();
+          ctx.translate(sh.x, sh.y);
+          ctx.rotate(sh.rot);
+
+          ctx.beginPath();
+          for(let k=0;k<pts;k++){
+            const ang = (k/pts)*Math.PI*2;
+            const wob = (Math.sin(k*2.15 + sh.t0*4.1)*0.18 + (rand()-0.5)*0.10);
+            const rr = (k%2===0 ? R : r2) * (1 + wob);
+            const x = Math.cos(ang)*rr;
+            const y = Math.sin(ang)*rr*0.70;
+            if(k===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+          }
+          ctx.closePath();
+
+          const g = ctx.createRadialGradient(0,0,0, 0,0, R);
+          g.addColorStop(0.0, rgba(sh.c, a));
+          g.addColorStop(0.34, rgba(sh.c, a*0.46));
+          g.addColorStop(1.0, rgba(sh.c, 0));
+          ctx.fillStyle = g;
+          ctx.fill();
+
+          ctx.strokeStyle = `rgba(244,244,244,${a*0.18})`;
+          ctx.lineWidth = 1.1;
+          ctx.stroke();
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawBassStars(t){
+        ctx.save();
+        ctx.globalCompositeOperation = "lighter";
+
+        for (let i=stars.length-1; i>=0; i--){
+          const st = stars[i];
+          const u = (t - st.t0) / st.dur;
+          if (u >= 1){ stars.splice(i,1); continue; }
+
+          const riseT = 0.16;
+          const holdT = st.hold;
+          const fallT = Math.max(0.10, 1 - riseT - holdT);
+
+          let env = 0;
+          if (u < riseT) env = smoothstep(clamp(u/riseT, 0, 1));
+          else if (u < riseT + holdT) env = 1;
+          else {
+            const f = (u - riseT - holdT) / fallT;
+            env = 1 - smoothstep(clamp(f, 0, 1));
+          }
+
+          const a = st.a * env * settings.intensity;
+
+          ctx.save();
+          ctx.translate(st.x, st.y);
+          ctx.rotate(st.rot + st.spin * u * 0.06);
+
+          const outer = st.r * 22;
+          const inner = outer * 0.44;
+
+          // red fill glow-ish
+          const g = ctx.createRadialGradient(0,0,0, 0,0, outer*1.10);
+          g.addColorStop(0.0, rgba(st.c, a*0.22));
+          g.addColorStop(0.35, rgba(st.c, a*0.12));
+          g.addColorStop(1.0, rgba(st.c, 0));
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.arc(0,0, outer*1.10, 0, Math.PI*2);
+          ctx.fill();
+
+          // star outline
+          starPath(ctx, 5, outer, inner);
+          ctx.strokeStyle = rgba(st.c, a*0.65);
+          ctx.lineWidth = Math.max(2.0, outer*0.06);
+          ctx.stroke();
+
+          // white crisp edge
+          ctx.strokeStyle = `rgba(244,244,244,${a*0.28})`;
+          ctx.lineWidth = Math.max(1.0, outer*0.03);
+          ctx.stroke();
+
+          // a few tiny burst rays
+          ctx.lineCap = "round";
+          ctx.strokeStyle = rgba(st.c, a*0.30);
+          ctx.lineWidth = Math.max(1.2, outer*0.03);
+          for (let k=0;k<6;k++){
+            const ang = (k/6)*Math.PI*2;
+            const r1 = outer*0.70;
+            const r2 = outer*1.25;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(ang)*r1, Math.sin(ang)*r1);
+            ctx.lineTo(Math.cos(ang)*r2, Math.sin(ang)*r2);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      // -----------------------------
+      // Logo bass glitch (FAST, not smooth)
+      // -----------------------------
+      let glitch = 0; // 0..1
+      function updateLogoGlitch(){
+        const gStrength = settings.logoGlitch; // 0..1.5
+        // Trigger mostly on bass transient (beat), a bit on bassEnergy
+        const hit = clamp(beat*1.2 + bassEnergy*0.35, 0, 1);
+
+        // Fast impulse on hits
+        if (settings.mode==="audio" && hit > 0.10){
+          glitch = Math.max(glitch, hit);
+        } else {
+          // decay quickly
+          glitch *= 0.72;
+        }
+
+        // Random jitter while glitching
+        const g = clamp(glitch * gStrength, 0, 1.6);
+
+        // fast, punchy shifts (small so it stays readable)
+        const jx = (randRange(-1, 1) * 7) * g;
+        const jy = (randRange(-1, 1) * 5) * g;
+        const sk = (randRange(-1, 1) * 2.0) * g;
+
+        logo.style.setProperty('--jx', jx.toFixed(2));
+        logo.style.setProperty('--jy', jy.toFixed(2));
+        logo.style.setProperty('--sk', sk.toFixed(2));
+        logo.style.setProperty('--gl', clamp(g, 0, 1).toFixed(3));
+      }
+
+      // -----------------------------
+      // Spawning logic (kept clean)
+      // -----------------------------
+      function spawnLogic(t, drive){
+        // Shards (controlled)
+        if (t >= nextShardAt){
+          const amt = settings.shapeAmt;
+          const want =
+            (settings.mode === "audio")
+              ? (beat > 0.12 ? 1 : (audioEnergy > 0.55 && rand() < 0.22*amt ? 1 : 0))
+              : (rand() < 0.20*amt ? 1 : 0);
+
+          const power = clamp(drive*0.62 + beat*0.85, 0, 1);
+
+          if (want){
+            spawnShard(t, power);
+            if (settings.mode==="audio" && beat > 0.30 && rand() < 0.28*amt) spawnShard(t + 0.010, power);
+          }
+          scheduleShard(t, drive);
+        }
+
+        // Spotlights (sparse, mostly on beats)
+        if (settings.mode==="audio"){
+          if (beat > 0.16 && rand() < 0.50){
+            spawnSpot(t, clamp(drive*0.65 + beat, 0, 1));
+          }
+        } else {
+          if (rand() < 0.006){
+            spawnSpot(t, clamp(drive*0.6, 0, 1));
+          }
+        }
+
+        // Bass-only stars (replaces bass stamp)
+        if (settings.mode==="audio"){
+          if (beat > 0.14){
+  const power = clamp(beat*1.05 + bassEnergy*0.55, 0, 1);
+
+  // starAmt also affects how often we emit stars per beat
+  const emit = clamp(settings.starAmt, 0, 2);
+
+  if (rand() < (0.45 * emit)) spawnBassStar(t, power);
+  if (beat > 0.30 && rand() < (0.18 * emit)) spawnBassStar(t + 0.012, clamp(power*0.95, 0, 1));
+}
+
+        }
+      }
+
+      // -----------------------------
+      // Noise
+      // -----------------------------
+      function drawNoiseLayer(t){
+        if(t-lastNoise < 1/12) return;
+        lastNoise=t;
+
+        const w=noise.width, h=noise.height;
+        const img = nctx.createImageData(w,h);
+        const d = img.data;
+        for(let i=0;i<d.length;i+=4){
+          const v = (rand()*255)|0;
+          d[i]=v; d[i+1]=v; d[i+2]=v;
+          d[i+3]=22;
+        }
+        nctx.putImageData(img,0,0);
+        nctx.fillStyle="rgba(0,0,0,0.06)";
+        nctx.fillRect(0,0,w,h);
+      }
+
+      // -----------------------------
+      // Mic button
+      // -----------------------------
+      ui.micBtn.addEventListener('click', async () => {
+        // request mic
+        if (settings.mode !== "audio") setMode("audio");
+        // (enableMic already bound)
+      });
+
+      // -----------------------------
+      // Main loop
+      // -----------------------------
+      let start = performance.now();
+      ctx.fillStyle="#000";
+      ctx.fillRect(0,0,W,H);
+      nextShardAt = 0;
+
+      function frame(now){
+        const t = (now - start)/1000;
+
+        updateAudio(t);
+
+        const pseudo = 0.42 + 0.30*Math.sin(t*2.4) + 0.12*Math.sin(t*5.6);
+        const drive = clamp(
+          (settings.mode==="audio")
+            ? (audioEnergy*0.60 + bassEnergy*0.46 + beat*0.78)
+            : pseudo,
+          0, 1
+        );
+
+        clearWithTrail();
+
+        spawnLogic(t, drive);
+
+        drawBeams(t, drive);
+        drawRibbons(t, drive);
+        drawSparks(t, drive);
+        drawSpots(t);
+        drawShards(t, drive);
+        drawBassStars(t);
+
+        drawNoiseLayer(t);
+
+        updateLogoGlitch();
+
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+
+      // -----------------------------
+      // Mic enable (separate so “Enable mic” works immediately)
+      // -----------------------------
+      document.getElementById('micBtn').addEventListener('click', async () => {
+        await enableMic();
+      });
+
+    })();
+  </script>
+
+  <!--
+    Changes you asked for:
+    - Logo reacts: fast bass-driven “glitch/jitter” (not slow), controlled by “Logo glitch on bass”.
+    - Broader setting ranges (intensity/speed/sensitivity/boost, and new “More colors” slider).
+    - Removed the bass-shape stamp entirely.
+    - Replaced it with bass-only “stars”/starbursts that trigger on drums/bass transients.
+    - “More colors” adds extra hues but keeps the original red-forward look unless you push it up.
+
+    Controls:
+      - M: open/close menu
+      - A: toggle Audio/Random
+      - Audio mode: click “Enable mic” once
+  -->
+</body>
+</html>
